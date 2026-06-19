@@ -173,22 +173,18 @@ def batonz_scrape_new(deal_id):
         title_el = soup.select_one("h1.sellCaseTitle, h1.case-title, h1")
         title = title_el.get_text(strip=True) if title_el else ""
 
-        # financial details from definition-list style elements
+        # financial details from div-based label/value pairs (Batonz redesign)
         rev = prof = price = region = ""
-        for th in soup.select("th, dt"):
-            label = th.get_text(strip=True)
-            val_el = th.find_next_sibling("td") or th.find_next_sibling("dd")
-            if not val_el:
-                continue
-            val = val_el.get_text(strip=True)
-            if "売上" in label:
-                rev = val
-            elif "利益" in label:
-                prof = val
-            elif "譲渡" in label and ("価格" in label or "額" in label):
-                price = val
-            elif "所在" in label or "都道府県" in label or "エリア" in label or "地域" in label:
-                region = val
+        label_map = {"売上高": "rev", "売上": "rev", "営業利益": "prof",
+                      "譲渡希望額": "price", "地域": "region"}
+        vals = {"rev": "", "prof": "", "price": "", "region": ""}
+        for div in soup.select("div.btz-p-3, div.btz-body-s-bold"):
+            t = div.get_text(strip=True)
+            if t in label_map and not vals[label_map[t]]:
+                ns = div.find_next_sibling("div")
+                if ns:
+                    vals[label_map[t]] = ns.get_text(strip=True)
+        rev, prof, price, region = vals["rev"], vals["prof"], vals["price"], vals["region"]
 
         upd = ""
         m = re.search(r"最終更新日[：:\s]*(\d{4}[/\-]\d{1,2}[/\-]\d{1,2})", html)
@@ -225,9 +221,8 @@ def batonz_scan_listing(existing_ids, max_pages=15):
 
             log.info("Batonz listing p%d → %d new IDs", page, page_new)
 
-            # Stop if no next-page link
-            next_link = soup.select_one('a[rel="next"], li.next a, a.next_page')
-            if not next_link:
+            # Stop if page returned no deal links (past last page)
+            if not links:
                 break
             time.sleep(DELAY)
         except Exception as e:
