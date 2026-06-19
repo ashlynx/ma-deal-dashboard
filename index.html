@@ -451,7 +451,10 @@ function scoreDeal(deal) {
   else if (rev > 0) score += p.rs_any;
 
   // Profitability
-  if (!isLoss && prof > 0) {
+  const profUnknown = d.prof && (d.prof.includes("非公開") || d.prof.includes("会員の方のみ") || d.prof.includes("X,"));
+  if (profUnknown && rev > 0) {
+    score += 10;
+  } else if (!isLoss && prof > 0) {
     score += p.pr_base;
     if (prof >= 3500) score += p.pr_3500;
     else if (prof >= 1500) score += p.pr_1500;
