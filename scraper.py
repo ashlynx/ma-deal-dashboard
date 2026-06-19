@@ -49,6 +49,28 @@ S.headers.update({
 })
 S.timeout = 20
 
+def batonz_login():
+    """Log into Batonz to access member-only data (profit etc)."""
+    if not BATONZ_EMAIL or not BATONZ_PASSWORD:
+        log.info("Batonz credentials not configured, skipping login")
+        return False
+    try:
+        r = S.post('https://batonz.jp/api/v2/login', json={
+            'login': BATONZ_EMAIL,
+            'password': BATONZ_PASSWORD
+        })
+        if r.status_code == 201:
+            log.info("Batonz login successful")
+            return True
+        else:
+            log.warning("Batonz login failed: %s", r.status_code)
+            return False
+    except Exception as e:
+        log.warning("Batonz login error: %s", e)
+        return False
+
+
+
 DELAY = 0.6          # seconds between requests
 BATCH_DELAY = 2.0    # pause every N requests
 BATCH_SIZE = 5
@@ -554,6 +576,8 @@ def main():
 
     # 3) Scan listing pages for new deals
     log.info("── Scanning Batonz listings ──")
+    batonz_login()
+
     bz_existing_ids = {d["id"] for d in bz_active}
     bz_new_ids = batonz_scan_listing(bz_existing_ids)
     log.info("Batonz new IDs found: %d", len(bz_new_ids))
