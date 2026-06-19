@@ -606,6 +606,19 @@ def main():
         "tranbi": tr_final,
     }
 
+    # 5.5) Remove deals older than 1 year
+    from datetime import timedelta
+    cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+    def is_fresh(d):
+        pub = d.get("pub", ""); upd = d.get("upd", "")
+        if not pub and not upd: return True
+        return (pub and pub >= cutoff) or (upd and upd >= cutoff)
+    bz_before, tr_before = len(bz_final), len(tr_final)
+    bz_final = [d for d in bz_final if is_fresh(d)]
+    tr_final = [d for d in tr_final if is_fresh(d)]
+    log.info("Age filter (1yr): Bz %d->%d, Tr %d->%d",
+             bz_before, len(bz_final), tr_before, len(tr_final))
+
     # 6) Push to GitHub
     rm_total = (len(bz_rm["deleted"]) + len(bz_rm["closed"])
                 + len(tr_rm["deleted"]) + len(tr_rm["closed"]))
