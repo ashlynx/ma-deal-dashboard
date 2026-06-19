@@ -556,6 +556,7 @@ function getFilteredDeals() {
   } else {
     deals.sort((a, b) => sortDir * (a[sortCol] - b[sortCol]) || (b.score - a.score));
   }
+  deals = deals.filter(d => d.rank !== 'C');
   if (rankFilter) deals = deals.filter(d => d.rank === rankFilter);
   return deals.slice(0, topN);
 }
