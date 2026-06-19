@@ -367,6 +367,8 @@ def _parse_tranbi_card(card):
     # Price (売却希望価格)
     price_el = card.select_one(".buyListCard__mainInfoBody")
     price = price_el.get_text(strip=True) if price_el else ""
+    if "＋" in price:
+        price = price.split("＋")[0].strip()
 
     # Industry (業種)
     industry = ""
