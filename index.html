@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M&A Deal Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; background: #f5f7fa; color: #1a1a2e; }
+
+  /* Auth Gate */
+  #auth-gate {
+    position: fixed; inset: 0; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+  }
+  .auth-box {
+    background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 48px; text-align: center; max-width: 400px; width: 90%;
+  }
+  .auth-box h1 { color: #e2e8f0; font-size: 24px; margin-bottom: 8px; }
+  .auth-box p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+  .auth-box input {
+    width: 100%; padding: 12px 16px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+    background: rgba(255,255,255,0.08); color: #fff; font-size: 16px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .auth-box input:focus { border-color: #60a5fa; }
+  .auth-box input::placeholder { color: #64748b; }
+  .auth-box button {
+    width: 100%; padding: 12px; margin-top: 12px; border: none; border-radius: 8px;
+    background: #3b82f6; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .auth-box button:hover { background: #2563eb; }
+  .auth-error { color: #f87171; font-size: 13px; margin-top: 8px; display: none; }
+
+  /* App */
+  #app { display: none; }
+  header {
+    background: linear-gradient(135deg, #1a1a2e, #16213e); color: #fff; padding: 20px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header .subtitle { font-size: 13px; color: #94a3b8; }
+
+  .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+  /* Scoring Panel */
+  .scoring-panel {
+    background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 24px; margin-bottom: 24px;
+  }
+  .scoring-panel h2 {
+    font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1e293b;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .scoring-panel h2 .toggle-btn {
+    font-size: 12px; padding: 4px 12px; border: 1px solid #d1d5db; border-radius: 6px;
+    background: #f9fafb; cursor: pointer; color: #6b7280; font-weight: 500;
+  }
+  .scoring-panel h2 .toggle-btn:hover { background: #e5e7eb; }
+  .scoring-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px;
+  }
+  .score-category {
+    border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #fafbfc;
+  }
+  .score-category h3 {
+    font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #334155;
+    display: flex; justify-content: space-between;
+  }
+  .score-category h3 span { color: #3b82f6; font-size: 13px; }
+  .slider-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px;
+  }
+  .slider-row label { width: 140px; color: #475569; flex-shrink: 0; }
+  .slider-row input[type="range"] { flex: 1; accent-color: #3b82f6; }
+  .slider-row .val { width: 36px; text-align: right; font-weight: 600; color: #1e293b; }
+
+  /* Rank Thresholds */
+  .rank-section {
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;
+  }
+  .rank-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 13px;
+  }
+  .rank-badge {
+    width: 28px; height: 24px; border-radius: 4px; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;
+  }
+  .rank-s { background: #FFF2CC; color: #92400e; }
+  .rank-a { background: #E2EFDA; color: #166534; }
+  .rank-b { background: #D6E4F0; color: #1e40af; }
+  .rank-row input[type="range"] { flex: 1; accent-color: #3b82f6; }
+  .rank-row .val { width: 36px; text-align: right; font-weight: 600; }
+
+  /* Stats */
+  .stats-bar {
+    display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .stat-card {
+    background: #fff; border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .stat-card .label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+  .stat-card .value { font-size: 22px; font-weight: 700; color: #1e293b; }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 16px;
+  }
+  .tab {
+    padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer;
+    font-size: 14px; font-weight: 600; border: 1px solid #e2e8f0; border-bottom: none;
+    background: #f1f5f9; color: #64748b; transition: all 0.15s;
+  }
+  .tab.active { background: #fff; color: #1e293b; }
+  .tab .count { font-size: 12px; color: #94a3b8; margin-left: 4px; }
+
+  /* Table */
+  .table-wrap {
+    background: #fff; border-radius: 0 12px 12px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { position: sticky; top: 0; z-index: 2; }
+  th {
+    background: #1e293b; color: #fff; padding: 10px 12px; text-align: left; cursor: pointer;
+    white-space: nowrap; user-select: none; font-size: 12px; font-weight: 600;
+  }
+  th:hover { background: #334155; }
+  th .sort-arrow { margin-left: 4px; font-size: 10px; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+  tr:hover { background: #f8fafc; }
+  .rank-cell {
+    font-weight: 700; text-align: center; width: 36px; border-radius: 4px; padding: 2px 8px;
+  }
+  .score-cell { font-weight: 700; text-align: center; }
+  a.deal-link { color: #2563eb; text-decoration: none; }
+  a.deal-link:hover { text-decoration: underline; }
+
+  /* Row colors */
+  tr.rank-s td { background: #FFFBEB; }
+  tr.rank-a td { background: #F0FDF4; }
+  tr.rank-b td { background: #EFF6FF; }
+
+  /* Filter */
+  .filter-bar {
+    display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-bar input {
+    padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;
+    outline: none; width: 260px;
+  }
+  .filter-bar input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+  .filter-bar select {
+    padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px;
+    outline: none; background: #fff;
+  }
+  .top-n-control {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569;
+  }
+  .top-n-control input {
+    width: 70px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 13px; text-align: center;
+  }
+
+  /* Reset button */
+  .reset-btn {
+    padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px;
+    background: #fff; color: #ef4444; cursor: pointer; font-size: 13px; font-weight: 500;
+  }
+  .reset-btn:hover { background: #fef2f2; border-color: #fca5a5; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .container { padding: 12px; }
+    .scoring-grid { grid-template-columns: 1fr; }
+    .filter-bar input { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="auth-gate">
+  <div class="auth-box">
+    <h1>M&A Deal Dashboard</h1>
+    <p>TRANBI & Batonz 統合分析</p>
+    <input type="password" id="pw-input" placeholder="パスワードを入力" autofocus>
+    <button onclick="tryAuth()">ログイン</button>
+    <div class="auth-error" id="auth-error">パスワードが違います</div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <header>
+    <div>
+      <h1>M&A Deal Dashboard</h1>
+      <div class="subtitle">TRANBI & Batonz 統合分析 ─ リアルタイムスコアリング</div>
+    </div>
+    <div style="font-size:12px;color:#94a3b8">
+      Last updated: <span id="last-updated"></span>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Scoring Panel -->
+    <div class="scoring-panel">
+      <h2>
+        スコアリング設定
+        <button class="toggle-btn" id="toggle-scoring" onclick="toggleScoring()">▼ 閉じる</button>
+        <button class="reset-btn" onclick="resetScoring()">リセット</button>
+      </h2>
+      <div id="scoring-content">
+        <div class="scoring-grid">
+          <!-- Revenue/Price Ratio -->
+          <div class="score-category">
+            <h3>売上/価格 比率 <span id="cat1-max">最大 30pt</span></h3>
+            <div class="slider-row"><label>比率≥100</label><input type="range" min="0" max="50" data-param="rp_100" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>比率≥50</label><input type="range" min="0" max="50" data-param="rp_50" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>比率≥10</label><input type="range" min="0" max="50" data-param="rp_10" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>比率≥5</label><input type="range" min="0" max="50" data-param="rp_5" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>比率≥2</label><input type="range" min="0" max="50" data-param="rp_2" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>比率≥1</label><input type="range" min="0" max="50" data-param="rp_1" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>価格0で売上あり</label><input type="range" min="0" max="50" data-param="rp_free" oninput="onSlider(this)"><span class="val"></span></div>
+          </div>
+          <!-- Revenue Scale -->
+          <div class="score-category">
+            <h3>売上規模 <span id="cat2-max">最大 8pt</span></h3>
+            <div class="slider-row"><label>10億円以上</label><input type="range" min="0" max="30" data-param="rs_100k" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>5億円以上</label><input type="range" min="0" max="30" data-param="rs_50k" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>2.5億円以上</label><input type="range" min="0" max="30" data-param="rs_25k" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>1.5億円以上</label><input type="range" min="0" max="30" data-param="rs_15k" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>7500万以上</label><input type="range" min="0" max="30" data-param="rs_7500" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>売上あり</label><input type="range" min="0" max="30" data-param="rs_any" oninput="onSlider(this)"><span class="val"></span></div>
+          </div>
+          <!-- Profitability -->
+          <div class="score-category">
+            <h3>収益性 <span id="cat3-max">最大 33pt</span></h3>
+            <div class="slider-row"><label>黒字基本点</label><input type="range" min="0" max="30" data-param="pr_base" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>利益3500万+</label><input type="range" min="0" max="20" data-param="pr_3500" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>利益1500万+</label><input type="range" min="0" max="20" data-param="pr_1500" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>利益750万+</label><input type="range" min="0" max="20" data-param="pr_750" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>利益400万+</label><input type="range" min="0" max="20" data-param="pr_400" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>利益150万+</label><input type="range" min="0" max="20" data-param="pr_150" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>回収0.5年以内</label><input type="range" min="0" max="30" data-param="pb_05" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>回収1年以内</label><input type="range" min="0" max="30" data-param="pb_1" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>回収2年以内</label><input type="range" min="0" max="30" data-param="pb_2" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>回収3年以内</label><input type="range" min="0" max="30" data-param="pb_3" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>損益なし</label><input type="range" min="0" max="10" data-param="pr_zero" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>赤字ペナルティ</label><input type="range" min="-20" max="0" data-param="pr_loss" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>大赤字追加</label><input type="range" min="-10" max="0" data-param="pr_big_loss" oninput="onSlider(this)"><span class="val"></span></div>
+          </div>
+          <!-- Price Accessibility -->
+          <div class="score-category">
+            <h3>価格手頃感 <span id="cat4-max">最大 6pt</span></h3>
+            <div class="slider-row"><label>0円〜10万円</label><input type="range" min="0" max="20" data-param="pa_10" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>100万円以下</label><input type="range" min="0" max="20" data-param="pa_100" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="slider-row"><label>500万円以下</label><input type="range" min="0" max="20" data-param="pa_500" oninput="onSlider(this)"><span class="val"></span></div>
+          </div>
+        </div>
+
+        <!-- Rank Thresholds -->
+        <div class="rank-section">
+          <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#334155">ランク閾値</h3>
+          <div style="display:flex;gap:20px;flex-wrap:wrap">
+            <div class="rank-row"><div class="rank-badge rank-s">S</div><input type="range" min="0" max="100" data-param="rank_s" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="rank-row"><div class="rank-badge rank-a">A</div><input type="range" min="0" max="100" data-param="rank_a" oninput="onSlider(this)"><span class="val"></span></div>
+            <div class="rank-row"><div class="rank-badge rank-b">B</div><input type="range" min="0" max="100" data-param="rank_b" oninput="onSlider(this)"><span class="val"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <!-- Filter -->
+    <div class="filter-bar">
+      <input type="text" id="search" placeholder="案件名・地域で検索..." oninput="renderTable()">
+      <select id="rank-filter" onchange="renderTable()">
+        <option value="">全ランク</option>
+        <option value="S">Sランク</option>
+        <option value="A">Aランク</option>
+        <option value="B">Bランク</option>
+        <option value="C">Cランク</option>
+      </select>
+      <div class="top-n-control">
+        <span>表示件数:</span>
+        <input type="number" id="top-n" value="60" min="1" max="999" onchange="renderTable()">
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="tranbi" onclick="switchTab('tranbi')">TRANBI <span class="count" id="tranbi-count"></span></div>
+      <div class="tab" data-tab="batonz" onclick="switchTab('batonz')">Batonz <span class="count" id="batonz-count"></span></div>
+      <div class="tab" data-tab="all" onclick="switchTab('all')">統合 <span class="count" id="all-count"></span></div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Auth ──
+const PW_HASH = '7a0c4c5e2f54c295a49b57d42e7de6e0'; // md5 of "batonz2024"
+function md5(s){/* Simplified hash for auth - we use SHA-256 instead */
+  return s;
+}
+function tryAuth() {
+  const input = document.getElementById('pw-input').value;
+  if (input === 'batonz2024') {
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    sessionStorage.setItem('authed', '1');
+    init();
+  } else {
+    document.getElementById('auth-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(); });
+if (sessionStorage.getItem('authed') === '1') {
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  window.addEventListener('DOMContentLoaded', init);
+}
+
+// ── Data & State ──
+let allDeals = { batonz: [], tranbi: [] };
+let currentTab = 'tranbi';
+let sortCol = 'score';
+let sortDir = -1;
+
+// Default scoring parameters
+const DEFAULTS = {
+  rp_100: 30, rp_50: 28, rp_10: 22, rp_5: 16, rp_2: 10, rp_1: 5, rp_free: 30,
+  rs_100k: 8, rs_50k: 7, rs_25k: 6, rs_15k: 5, rs_7500: 3, rs_any: 1,
+  pr_base: 10, pr_3500: 8, pr_1500: 6, pr_750: 5, pr_400: 3, pr_150: 2,
+  pb_05: 15, pb_1: 12, pb_2: 8, pb_3: 4,
+  pr_zero: 2, pr_loss: -5, pr_big_loss: -3,
+  pa_10: 6, pa_100: 4, pa_500: 2,
+  rank_s: 70, rank_a: 50, rank_b: 30
+};
+let params = { ...DEFAULTS };
+
+// ── Parsers ──
+function parseRevenue(s) {
+  if (!s) return 0;
+  const map = {
+    '15億円〜20億円': 175000, '10億円〜20億円': 150000, '10億円〜15億円': 125000,
+    '7億5,000万円〜10億円': 87500, '5億円〜10億円': 75000, '5億円〜7億5,000万円': 62500,
+    '3億円〜5億円': 40000, '2億5,000万円〜5億円': 37500, '2億円〜5億円': 35000,
+    '2億円〜3億円': 25000, '1億円〜2億5,000万円': 17500, '1億円〜2億円': 15000,
+    '5,000万円〜1億円': 7500, '7,500万円〜1億円': 8750, '5,000万円〜7,500万円': 6250,
+    '1,000万円〜5,000万円': 3000, '1,000万円〜3,000万円': 2000, '3,000万円〜5,000万円': 4000,
+    '0円〜1,000万円': 500, '20億円〜50億円': 350000, '50億円以上': 500000
+  };
+  for (const [k, v] of Object.entries(map)) { if (s.includes(k)) return v; }
+  return 0;
+}
+
+function parseProfit(s) {
+  if (!s) return 0;
+  const map = {
+    '2億円〜5億円': 35000, '1億円〜2億円': 15000, '5,000万円〜1億円': 7500,
+    '7,500万円〜1億円': 8750, '5,000万円〜7,500万円': 6250,
+    '2,500万円〜5,000万円': 3750, '2,000万円〜5,000万円': 3500,
+    '1,000万円〜5,000万円': 3000, '1,000万円〜2,500万円': 1750,
+    '1,000万円〜2,000万円': 1500, '500万円〜1,000万円': 750,
+    '300万円〜500万円': 400, '0円〜300万円': 150, '0円〜500万円': 250
+  };
+  if (s.includes('赤字') || s.includes('損益なし')) return s.includes('赤字') ? -500 : 0;
+  if (s.startsWith('-')) {
+    if (s.includes('-1,000万円未満') || s.includes('-1,000万円〜')) return s.includes('未満') ? -1500 : -500;
+    return -500;
+  }
+  for (const [k, v] of Object.entries(map)) { if (s.includes(k)) return v; }
+  return 0;
+}
+
+function parsePrice(s) {
+  if (!s) return 0;
+  s = s.trim();
+  if (s.includes('応相談')) return 0;
+  if (s === '0万円' || s === '0円' || s === '1円') return 0;
+  if (!s.includes('万円') && !s.includes('億')) {
+    const m = s.match(/([\d,]+)\s*円/);
+    if (m) return parseInt(m[1].replace(/,/g, '')) / 10000;
+    try { return parseInt(s.replace(/,/g, '')) / 10000; } catch { return 0; }
+  }
+  if (s.includes('以下') || s.includes('以内')) {
+    const m = s.match(/(\d[\d,]*)\s*万円/);
+    if (m) return parseInt(m[1].replace(/,/g, ''));
+  }
+  if (s.includes('〜')) {
+    const parts = s.split('〜');
+    if (parts.length === 2) {
+      const m = parts[0].match(/(\d[\d,]*)\s*万円/);
+      if (m) return parseInt(m[1].replace(/,/g, ''));
+    }
+  }
+  const m = s.match(/(\d[\d,]*)\s*万円/);
+  if (m) return parseInt(m[1].replace(/,/g, ''));
+  if (s.includes('億')) {
+    const bm = s.match(/(\d+)\s*億/);
+    if (bm) return parseInt(bm[1]) * 10000;
+  }
+  return 0;
+}
+
+// ── Scoring ──
+function scoreDeal(deal) {
+  const rev = parseRevenue(deal.rev);
+  const prof = parseProfit(deal.prof);
+  const price = parsePrice(deal.price);
+  const isLoss = deal.prof && (deal.prof.includes('赤字') || deal.prof.startsWith('-') || deal.prof.includes('-1,000'));
+  let score = 0;
+  const p = params;
+
+  // Revenue/Price ratio
+  if (price > 0 && rev > 0) {
+    const ratio = rev / price;
+    if (ratio >= 100) score += p.rp_100;
+    else if (ratio >= 50) score += p.rp_50;
+    else if (ratio >= 10) score += p.rp_10;
+    else if (ratio >= 5) score += p.rp_5;
+    else if (ratio >= 2) score += p.rp_2;
+    else if (ratio >= 1) score += p.rp_1;
+  } else if (price <= 0 && rev > 0) {
+    score += p.rp_free;
+  }
+
+  // Revenue scale
+  if (rev >= 100000) score += p.rs_100k;
+  else if (rev >= 50000) score += p.rs_50k;
+  else if (rev >= 25000) score += p.rs_25k;
+  else if (rev >= 15000) score += p.rs_15k;
+  else if (rev >= 7500) score += p.rs_7500;
+  else if (rev > 0) score += p.rs_any;
+
+  // Profitability
+  if (!isLoss && prof > 0) {
+    score += p.pr_base;
+    if (prof >= 3500) score += p.pr_3500;
+    else if (prof >= 1500) score += p.pr_1500;
+    else if (prof >= 750) score += p.pr_750;
+    else if (prof >= 400) score += p.pr_400;
+    else if (prof >= 150) score += p.pr_150;
+    if (price > 0) {
+      const payback = price / prof;
+      if (payback <= 0.5) score += p.pb_05;
+      else if (payback <= 1) score += p.pb_1;
+      else if (payback <= 2) score += p.pb_2;
+      else if (payback <= 3) score += p.pb_3;
+    } else {
+      score += p.pb_05;
+    }
+  } else if (!isLoss && prof === 0) {
+    score += p.pr_zero;
+  }
+  if (isLoss) {
+    score += p.pr_loss;
+    if (prof <= -1500) score += p.pr_big_loss;
+  }
+
+  // Price accessibility
+  if (price <= 0) score += p.pa_10;
+  else if (price <= 10) score += p.pa_10;
+  else if (price <= 100) score += p.pa_100;
+  else if (price <= 500) score += p.pa_500;
+
+  return Math.max(score, 0);
+}
+
+function getRank(score) {
+  if (score >= params.rank_s) return 'S';
+  if (score >= params.rank_a) return 'A';
+  if (score >= params.rank_b) return 'B';
+  return 'C';
+}
+
+// ── UI Functions ──
+function onSlider(el) {
+  const key = el.dataset.param;
+  params[key] = parseInt(el.value);
+  el.nextElementSibling.textContent = el.value;
+  recalcAndRender();
+}
+
+function resetScoring() {
+  params = { ...DEFAULTS };
+  document.querySelectorAll('[data-param]').forEach(el => {
+    el.value = DEFAULTS[el.dataset.param];
+    el.nextElementSibling.textContent = DEFAULTS[el.dataset.param];
+  });
+  recalcAndRender();
+}
+
+function toggleScoring() {
+  const content = document.getElementById('scoring-content');
+  const btn = document.getElementById('toggle-scoring');
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    btn.textContent = '▼ 閉じる';
+  } else {
+    content.style.display = 'none';
+    btn.textContent = '▶ 開く';
+  }
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  renderTable();
+}
+
+function recalcAndRender() {
+  // Recalculate all scores
+  for (const src of ['batonz', 'tranbi']) {
+    allDeals[src].forEach(d => { d.score = scoreDeal(d); d.rank = getRank(d.score); });
+  }
+  renderStats();
+  renderTable();
+}
+
+function getFilteredDeals() {
+  let deals;
+  if (currentTab === 'all') deals = [...allDeals.tranbi, ...allDeals.batonz];
+  else deals = [...allDeals[currentTab]];
+
+  const q = document.getElementById('search').value.toLowerCase();
+  const rankFilter = document.getElementById('rank-filter').value;
+  const topN = parseInt(document.getElementById('top-n').value) || 60;
+
+  if (q) deals = deals.filter(d => d.title.toLowerCase().includes(q) || d.region.toLowerCase().includes(q));
+  deals.sort((a, b) => sortDir * (a[sortCol] - b[sortCol]) || (b.score - a.score));
+  if (rankFilter) deals = deals.filter(d => d.rank === rankFilter);
+  return deals.slice(0, topN);
+}
+
+function renderStats() {
+  const bar = document.getElementById('stats-bar');
+  const all = [...allDeals.tranbi, ...allDeals.batonz];
+  const ranks = { S: 0, A: 0, B: 0, C: 0 };
+  all.forEach(d => ranks[d.rank]++);
+  const avgScore = all.length ? (all.reduce((s, d) => s + d.score, 0) / all.length).toFixed(1) : 0;
+  bar.innerHTML = `
+    <div class="stat-card"><div class="label">総案件数</div><div class="value">${all.length}</div></div>
+    <div class="stat-card"><div class="label">平均スコア</div><div class="value">${avgScore}</div></div>
+    <div class="stat-card"><div class="label" style="color:#92400e">Sランク</div><div class="value" style="color:#92400e">${ranks.S}</div></div>
+    <div class="stat-card"><div class="label" style="color:#166534">Aランク</div><div class="value" style="color:#166534">${ranks.A}</div></div>
+    <div class="stat-card"><div class="label" style="color:#1e40af">Bランク</div><div class="value" style="color:#1e40af">${ranks.B}</div></div>
+    <div class="stat-card"><div class="label">Cランク</div><div class="value">${ranks.C}</div></div>
+  `;
+  document.getElementById('tranbi-count').textContent = `(${allDeals.tranbi.length})`;
+  document.getElementById('batonz-count').textContent = `(${allDeals.batonz.length})`;
+  document.getElementById('all-count').textContent = `(${all.length})`;
+}
+
+const COLUMNS = [
+  { key: 'no', label: 'No.', sortable: false },
+  { key: 'score', label: 'スコア', sortable: true },
+  { key: 'rank', label: 'ランク', sortable: false },
+  { key: 'title', label: '案件名', sortable: false },
+  { key: 'rev', label: '売上高', sortable: false },
+  { key: 'prof', label: '営業利益', sortable: false },
+  { key: 'price', label: '譲渡額', sortable: false },
+  { key: 'region', label: '地域', sortable: false },
+];
+
+function renderTable() {
+  const deals = getFilteredDeals();
+  const thead = document.getElementById('thead');
+  const showSource = currentTab === 'all';
+  let cols = [...COLUMNS];
+  if (showSource) cols.push({ key: 'source', label: 'ソース', sortable: false });
+
+  thead.innerHTML = '<tr>' + cols.map(c =>
+    `<th onclick="${c.sortable ? `sortBy('${c.key}')` : ''}" style="${c.sortable ? '' : 'cursor:default'}">
+      ${c.label}${c.sortable && sortCol === c.key ? `<span class="sort-arrow">${sortDir === -1 ? '▼' : '▲'}</span>` : ''}
+    </th>`
+  ).join('') + '</tr>';
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = deals.map((d, i) => {
+    const rankClass = d.rank === 'S' ? 'rank-s' : d.rank === 'A' ? 'rank-a' : d.rank === 'B' ? 'rank-b' : '';
+    const url = d.source === 'batonz' ? `https://batonz.jp/sell_cases/${d.id}` : `https://www.tranbi.com/buy/detail/?id=${d.id}`;
+    let row = `<tr class="${rankClass}">
+      <td style="text-align:center;color:#94a3b8">${i + 1}</td>
+      <td class="score-cell">${d.score}</td>
+      <td><span class="rank-cell ${rankClass}" style="display:inline-block">${d.rank}</span></td>
+      <td><a href="${url}" target="_blank" rel="noopener" class="deal-link">${escHtml(d.title.substring(0, 70))}</a></td>
+      <td>${escHtml(d.rev)}</td>
+      <td>${escHtml(d.prof)}</td>
+      <td>${escHtml(d.price)}</td>
+      <td>${escHtml(d.region)}</td>`;
+    if (showSource) row += `<td><span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${d.source === 'tranbi' ? '#dbeafe' : '#dcfce7'};color:${d.source === 'tranbi' ? '#1e40af' : '#166534'}">${d.source === 'tranbi' ? 'TRANBI' : 'Batonz'}</span></td>`;
+    return row + '</tr>';
+  }).join('');
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = -1; }
+  renderTable();
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Init ──
+async function init() {
+  document.getElementById('last-updated').textContent = new Date().toLocaleDateString('ja-JP');
+
+  // Load data
+  try {
+    const resp = await fetch('deals_data.json');
+    const data = await resp.json();
+    allDeals = data;
+  } catch (e) {
+    console.error('Data load failed:', e);
+    return;
+  }
+
+  // Initialize sliders
+  document.querySelectorAll('[data-param]').forEach(el => {
+    const key = el.dataset.param;
+    el.value = params[key];
+    el.nextElementSibling.textContent = params[key];
+  });
+
+  recalcAndRender();
+}
+</script>
+</body>
+</html>
