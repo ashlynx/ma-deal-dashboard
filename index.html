@@ -545,7 +545,14 @@ function getFilteredDeals() {
   const topN = parseInt(document.getElementById('top-n').value) || 60;
 
   if (q) deals = deals.filter(d => d.title.toLowerCase().includes(q) || d.region.toLowerCase().includes(q));
-  deals.sort((a, b) => sortDir * (a[sortCol] - b[sortCol]) || (b.score - a.score));
+  if (sortCol === 'pub' || sortCol === 'upd') {
+    deals.sort((a, b) => {
+      const av = a[sortCol] || '0000-00-00', bv = b[sortCol] || '0000-00-00';
+      return sortDir * av.localeCompare(bv) || (b.score - a.score);
+    });
+  } else {
+    deals.sort((a, b) => sortDir * (a[sortCol] - b[sortCol]) || (b.score - a.score));
+  }
   if (rankFilter) deals = deals.filter(d => d.rank === rankFilter);
   return deals.slice(0, topN);
 }
@@ -578,6 +585,8 @@ const COLUMNS = [
   { key: 'prof', label: '営業利益', sortable: false },
   { key: 'price', label: '譲渡額', sortable: false },
   { key: 'region', label: '地域', sortable: false },
+  { key: 'pub', label: '公開日', sortable: true },
+  { key: 'upd', label: '更新日', sortable: true },
 ];
 
 function renderTable() {
@@ -605,7 +614,9 @@ function renderTable() {
       <td>${escHtml(d.rev)}</td>
       <td>${escHtml(d.prof)}</td>
       <td>${escHtml(d.price)}</td>
-      <td>${escHtml(d.region)}</td>`;
+      <td>${escHtml(d.region)}</td>
+      <td style="white-space:nowrap;font-size:12px;color:#64748b">${d.pub || '─'}</td>
+      <td style="white-space:nowrap;font-size:12px;color:#64748b">${d.upd || '─'}</td>`;
     if (showSource) row += `<td><span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${d.source === 'tranbi' ? '#dbeafe' : '#dcfce7'};color:${d.source === 'tranbi' ? '#1e40af' : '#166534'}">${d.source === 'tranbi' ? 'TRANBI' : 'Batonz'}</span></td>`;
     return row + '</tr>';
   }).join('');
