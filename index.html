@@ -290,7 +290,7 @@
       </select>
       <div class="top-n-control">
         <span>表示件数:</span>
-        <input type="number" id="top-n" value="60" min="1" max="999" onchange="renderTable()">
+        <input type="number" id="top-n" value="999" min="1" max="999" onchange="renderTable()">
       </div>
     </div>
 
@@ -542,7 +542,7 @@ function getFilteredDeals() {
 
   const q = document.getElementById('search').value.toLowerCase();
   const rankFilter = document.getElementById('rank-filter').value;
-  const topN = parseInt(document.getElementById('top-n').value) || 60;
+  const topN = parseInt(document.getElementById('top-n').value) || 999;
 
   if (q) deals = deals.filter(d => d.title.toLowerCase().includes(q) || d.region.toLowerCase().includes(q));
   if (sortCol === 'pub' || sortCol === 'upd') {
