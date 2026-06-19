@@ -200,8 +200,9 @@
       <h1>M&A Deal Dashboard</h1>
       <div class="subtitle">TRANBI & Batonz 統合分析 ─ リアルタイムスコアリング</div>
     </div>
-    <div style="font-size:12px;color:#94a3b8">
-      Last updated: <span id="last-updated"></span>
+    <div style="font-size:12px;color:#94a3b8;text-align:right;line-height:1.7">
+      <div>公開日: <span id="published-date" style="color:#e2e8f0">─</span></div>
+      <div>最終更新: <span id="last-updated" style="color:#e2e8f0">─</span></div>
     </div>
   </header>
 
@@ -623,13 +624,13 @@ function escHtml(s) {
 
 // ── Init ──
 async function init() {
-  document.getElementById('last-updated').textContent = new Date().toLocaleDateString('ja-JP');
-
   // Load data
   try {
     const resp = await fetch('deals_data.json');
     const data = await resp.json();
-    allDeals = data;
+    allDeals = { batonz: data.batonz, tranbi: data.tranbi };
+    document.getElementById('published-date').textContent = data.published_date || '─';
+    document.getElementById('last-updated').textContent = data.updated_date || '─';
   } catch (e) {
     console.error('Data load failed:', e);
     return;
