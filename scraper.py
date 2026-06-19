@@ -324,21 +324,93 @@ def tranbi_scrape_new(deal_id):
         return None
 
 
+def _parse_tranbi_card(card):
+    """Extract deal data from a TRANBI listing card element."""
+    link = card.select_one('a[href*="/buy/detail/"]')
+    if not link:
+        return None
+    m = re.search(r"[?&]id=(\d+)", link.get("href", ""))
+    if not m:
+        return None
+    deal_id = m.group(1)
+
+    title_el = card.select_one(".buyListCard__titleText")
+    title = title_el.get_text(strip=True) if title_el else ""
+
+    # Dates (公開日, 更新日)
+    pub = upd = ""
+    for di in card.select(".buyListCard__dateItem"):
+        txt = di.get_text(strip=True)
+        dm = re.search(r"(\d{4}-\d{2}-\d{2})", txt)
+        if dm:
+            if "公開" in txt:
+                pub = dm.group(1)
+            elif "更新" in txt:
+                upd = dm.group(1)
+
+    # Info items (売上高, 営業利益, 所在地, 従業員数)
+    rev = prof = region = ""
+    for item in card.select(".buyListCard__infoItem"):
+        head = item.select_one(".buyListCard__infoHead")
+        body = item.select_one(".buyListCard__infoBody")
+        if not head or not body:
+            continue
+        label = head.get_text(strip=True)
+        val = body.get_text(strip=True)
+        if "売上" in label:
+            rev = val
+        elif "利益" in label:
+            prof = val
+        elif "所在" in label:
+            region = val
+
+    # Price (売却希望価格)
+    price_el = card.select_one(".buyListCard__mainInfoBody")
+    price = price_el.get_text(strip=True) if price_el else ""
+
+    # Industry (業種)
+    industry = ""
+    for el in card.select("[class*=industry], [class*=category]"):
+        txt = el.get_text(strip=True)
+        if txt.startswith("業種"):
+            industry = txt.replace("業種", "").strip()
+            break
+
+    return {
+        "id": deal_id, "title": title,
+        "rev": rev, "prof": prof, "price": price,
+        "region": region, "industry": industry,
+        "source": "tranbi", "pub": pub, "upd": upd,
+    }
+
+
 def tranbi_scan_listing(existing_ids, max_pages=15):
-    """Return list of new deal IDs from TRANBI listing pages."""
+    """Scan TRANBI listing pages. Returns (new_ids, new_deals_data).
+    new_deals_data is a dict mapping deal_id → deal dict extracted from the card.
+    This avoids visiting individual detail pages (which trigger 403 rate limiting).
+    """
     new_ids = []
+    new_deals_data = {}
+    seen = set()
     for page in range(1, max_pages + 1):
         try:
             r = S.get("https://www.tranbi.com/buy/list/", params={"page": page})
             r.raise_for_status()
             soup = BeautifulSoup(r.text, "lxml")
 
-            links = soup.select('a[href*="/buy/detail/"]')
+            cards = soup.select(".buyListCard")
             page_new = 0
-            for a in links:
-                m = re.search(r"[?&]id=(\d+)", a.get("href", ""))
-                if m and m.group(1) not in existing_ids:
-                    new_ids.append(m.group(1))
+            for card in cards:
+                deal = _parse_tranbi_card(card)
+                if not deal:
+                    continue
+                did = deal["id"]
+                if did in seen:
+                    continue
+                seen.add(did)
+                if did not in existing_ids:
+                    new_ids.append(did)
+                    new_deals_data[did] = deal
                     page_new += 1
 
             log.info("TRANBI listing p%d → %d new IDs", page, page_new)
@@ -352,7 +424,7 @@ def tranbi_scan_listing(existing_ids, max_pages=15):
             log.warning("TRANBI listing p%d error: %s", page, e)
             break
 
-    return list(dict.fromkeys(new_ids))
+    return list(dict.fromkeys(new_ids)), new_deals_data
 
 
 # ════════════════════════════════════════
@@ -440,7 +512,7 @@ def build_notification(stats):
     rm_total = s["batonz_del"] + s["batonz_cls"] + s["tranbi_del"] + s["tranbi_cls"]
     if rm_total:
         lines.append("")
-        lines.append(f'🗑 除外: {rm_total} 件')
+        lines.append(f'👑 除外: {rm_total} 件')
         for d in s["removed_list"][:8]:
             lines.append(f'  [{d["reason"]}] {d["title"][:35]}')
 
@@ -491,12 +563,15 @@ def main():
 
     log.info("── Scanning TRANBI listings ──")
     tr_existing_ids = {d["id"] for d in tr_active}
-    tr_new_ids = tranbi_scan_listing(tr_existing_ids)
+    tr_new_ids, tr_listing_data = tranbi_scan_listing(tr_existing_ids)
     log.info("TRANBI new IDs found: %d", len(tr_new_ids))
 
     # 4) Scrape new deal details
     new_bz = scrape_new_deals(bz_new_ids, batonz_scrape_new, "Batonz")
-    new_tr = scrape_new_deals(tr_new_ids, tranbi_scrape_new, "TRANBI")
+    # TRANBI: use data already extracted from listing pages (no detail page visits)
+    new_tr = [tr_listing_data[did] for did in tr_new_ids if did in tr_listing_data]
+    for d in new_tr:
+        log.info("TRANBI new deal: %s %s", d["id"], d["title"][:30])
 
     # 5) Merge
     bz_final = bz_active + new_bz
